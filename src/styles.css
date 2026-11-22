@@ -280,3 +280,13 @@ button:not(:disabled):active{transform:translateY(1px)}
 .employee-modal{border-radius:20px;background:#fffefb}
 @media(max-width:900px){.login-center{grid-template-columns:1fr;gap:28px;max-width:470px;padding:40px 0}.login-message{text-align:center}.login-message p{margin-inline:auto}.login-stage{min-height:calc(100vh - 28px)}}
 @media(max-width:700px){.login-screen{padding:10px}.login-stage{min-height:calc(100vh - 20px);border-radius:22px;padding:24px 18px}.login-center{padding:32px 0}.login-message h2{font-size:32px}.login-form{padding:25px 20px}.sidebar{width:62px;padding:18px 7px}.main-area{margin-inline-start:62px;width:calc(100% - 62px)}.topbar{margin:9px 8px 0;padding:0 12px;height:62px;border-radius:16px}.page-content{padding:18px 9px 30px}}
+
+
+.topbar{display:grid;grid-template-columns:minmax(130px,1fr) auto minmax(150px,1fr);gap:16px}
+.top-nav{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0}
+.top-nav-item{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;background:transparent;color:#668078;padding:10px 13px;border-radius:24px;font-size:11px;white-space:nowrap}
+.top-nav-item:hover{background:#f0f4e9;color:#004a46}
+.top-nav-item.active{background:#eaf3e8;border-color:#d9e8d9;color:#005a55;box-shadow:0 3px 10px #004a460c}
+.top-actions{justify-content:flex-end}
+@media(max-width:1050px){.topbar{grid-template-columns:auto 1fr auto}.top-nav-item{padding:9px}.top-nav-item span{display:none}}
+@media(max-width:700px){.topbar{grid-template-columns:auto 1fr auto}.top-nav{gap:2px}.top-nav-item{padding:8px}.top-nav-item span{display:none}}
