@@ -71,7 +71,7 @@
   .main-area{margin:0!important;width:100%!important}
   .page-content{padding:0!important;max-width:none!important}
   .attendance-workspace{display:block!important}
-  .attendance-workspace>.panel{box-shadow:none!important;border:0!important;padding:0!important;margin:0 0 12px!important;break-inside:avoid}
+  .attendance-workspace>.panel{display:none!important}.attendance-workspace>.attendance-reports{display:block!important;box-shadow:none!important;border:0!important;padding:0!important;margin:0!important;break-inside:avoid}
   .attendance-workspace .panel-heading{margin-bottom:8px!important}
   .attendance-matrix-wrap,.table-wrap{overflow:visible!important}
   .attendance-matrix,.attendance-report-table{width:100%!important;min-width:0!important;white-space:normal!important}
