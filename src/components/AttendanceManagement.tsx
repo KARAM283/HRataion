@@ -1,302 +1,119 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Printer, RefreshCw, Search, UserRound } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Printer, RefreshCw, UserRound, Check, LogOut, Palmtree } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-type AttendanceRow = {
-  id: string;
-  employee_id: string;
-  attendance_date: string;
-  check_in: string | null;
-  check_out: string | null;
-  status: string | null;
-};
-type EmployeeRow = { id: string; full_name: string; employee_code: string | null };
-type ReportKind = "all" | "present" | "absence" | "leave" | "times";
-
-function currentMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function baghdadToday() {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  const part = (type: string) => parts.find(p => p.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-}
-function baghdadTime() {
-  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
-}
-function timeLabel(value: string | null, ar: boolean) {
-  if (!value) return "—";
-  return new Date(value).toLocaleTimeString(ar ? "ar-IQ" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" });
-}
-function dateLabel(value: string, ar: boolean, options: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" }) {
-  return new Date(value + "T12:00:00").toLocaleDateString(ar ? "ar-IQ" : "en-GB", options);
-}
-function monthLabel(value: string, ar: boolean) {
-  const [y, m] = value.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString(ar ? "ar-IQ" : "en-US", { month: "long", year: "numeric" });
-}
-function monthDates(value: string) {
-  const [y, m] = value.split("-").map(Number);
-  const last = new Date(y, m, 0).getDate();
-  return Array.from({ length: last }, (_, i) => `${value}-${String(i + 1).padStart(2, "0")}`);
-}
-function localTimestamp(date: string, time: string) {
-  // Baghdad is UTC+03:00. Store an explicit offset so manually entered times remain unambiguous.
-  return new Date(`${date}T${time}:00+03:00`).toISOString();
-}
+type AttendanceRow = { id: string; employee_id: string; attendance_date: string; check_in: string | null; check_out: string | null; status: string | null };
+type EmployeeRow = { id: string; full_name: string; employee_code: string | null; status?: string | null };
+type ProfileRow = { employee_id: string | null; login_email: string | null; is_active: boolean };
+const todayBaghdad = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+const nowBaghdad = () => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+const timeText = (v: string | null) => v ? new Date(v).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Baghdad"}) : "—";
+const stamp = (date: string,time: string) => new Date(`${date}T${time}:00+03:00`).toISOString();
 
 export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
   const ar = lang === "ar";
-  const [month, setMonth] = useState(currentMonth);
-  const [records, setRecords] = useState<AttendanceRow[]>([]);
-  const [employees, setEmployees] = useState<EmployeeRow[]>([]);
-  const [employeeFilter, setEmployeeFilter] = useState("all");
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [selectedDate, setSelectedDate] = useState(baghdadToday());
-  const [timeDialog, setTimeDialog] = useState<{ employee: EmployeeRow; kind: "check_in" | "check_out" } | null>(null);
-  const [timeValue, setTimeValue] = useState(baghdadTime());
-  const [report, setReport] = useState<ReportKind>("all");
+  const [month,setMonth] = useState(monthKey(new Date()));
+  const [selectedDate,setSelectedDate] = useState(todayBaghdad());
+  const [employees,setEmployees] = useState<EmployeeRow[]>([]);
+  const [profiles,setProfiles] = useState<ProfileRow[]>([]);
+  const [records,setRecords] = useState<AttendanceRow[]>([]);
+  const [selectedEmployee,setSelectedEmployee] = useState("all");
+  const [timeDialog,setTimeDialog] = useState<{employee:EmployeeRow;kind:"check_in"|"check_out"}|null>(null);
+  const [time,setTime] = useState(nowBaghdad());
+  const [busy,setBusy] = useState(false);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState("");
+  const [notice,setNotice] = useState("");
+  const [calendarMonth,setCalendarMonth] = useState(month);
 
-  const dates = useMemo(() => monthDates(month), [month]);
-  const selectedDay = dates.includes(selectedDate) ? selectedDate : dates[0];
-  const employeeById = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
-  const recordMap = useMemo(() => new Map(records.map(r => [`${r.employee_id}|${r.attendance_date}`, r])), [records]);
-  const visibleEmployees = useMemo(() => employees.filter(e => {
-    const matchesFilter = employeeFilter === "all" || e.id === employeeFilter;
-    const term = query.trim().toLowerCase();
-    const matchesQuery = !term || e.full_name.toLowerCase().includes(term) || (e.employee_code ?? "").toLowerCase().includes(term);
-    return matchesFilter && matchesQuery;
-  }), [employees, employeeFilter, query]);
+  const monthDays = useMemo(() => {
+    const [y,m] = calendarMonth.split("-").map(Number);
+    const first = new Date(y,m-1,1);
+    const count = new Date(y,m,0).getDate();
+    const offset = first.getDay();
+    return { offset, days: Array.from({length:count},(_,i)=>`${calendarMonth}-${String(i+1).padStart(2,"0")}`) };
+  },[calendarMonth]);
+  const recordMap = useMemo(()=>new Map(records.map(r=>[`${r.employee_id}|${r.attendance_date}`,r])),[records]);
+  const profileMap = useMemo(()=>new Map(profiles.map(p=>[p.employee_id,p])),[profiles]);
+  const activeEmployees = employees.filter(e=>e.status !== "inactive");
+  const rows = selectedEmployee === "all" ? activeEmployees : activeEmployees.filter(e=>e.id===selectedEmployee);
+  const dayOffDates = useMemo(()=>new Set(records.filter(r=>["day_off","day-off","leave"].includes(r.status??"")).map(r=>r.attendance_date)),[records]);
+  const dayRecords = rows.map(employee=>({employee,record:recordMap.get(`${employee.id}|${selectedDate}`)??null}));
+  const presentCount = dayRecords.filter(x=>x.record?.check_in || x.record?.status==="present").length;
+  const offCount = dayRecords.filter(x=>["day_off","day-off","leave"].includes(x.record?.status??"")).length;
+  const absentCount = dayRecords.filter(x=>!x.record).length;
 
   async function load() {
-    if (!supabase) return;
-    setLoading(true);
-    setError("");
-    const start = month + "-01";
-    const end = dates[dates.length - 1];
-    const [attendanceResult, employeeResult] = await Promise.all([
-      supabase.from("attendance").select("id,employee_id,attendance_date,check_in,check_out,status").gte("attendance_date", start).lte("attendance_date", end).order("attendance_date", { ascending: true }),
-      supabase.from("employees").select("id,full_name,employee_code").order("full_name", { ascending: true })
+    if(!supabase) return;
+    setLoading(true); setError("");
+    const start = calendarMonth+"-01";
+    const [e,a,p] = await Promise.all([
+      supabase.from("employees").select("id,full_name,employee_code,status").order("full_name"),
+      supabase.from("attendance").select("id,employee_id,attendance_date,check_in,check_out,status").gte("attendance_date",start).lte("attendance_date",calendarMonth+"-"+String(new Date(Number(calendarMonth.slice(0,4)),Number(calendarMonth.slice(5,7)),0).getDate()).padStart(2,"0")),
+      supabase.from("user_profiles").select("employee_id,login_email,is_active")
     ]);
-    if (attendanceResult.error) setError(attendanceResult.error.message);
-    else setRecords((attendanceResult.data ?? []) as AttendanceRow[]);
-    if (employeeResult.error) setError(employeeResult.error.message);
-    else setEmployees((employeeResult.data ?? []) as EmployeeRow[]);
+    if(e.error) setError(e.error.message); else setEmployees((e.data??[]) as EmployeeRow[]);
+    if(a.error) setError(a.error.message); else setRecords((a.data??[]) as AttendanceRow[]);
+    if(p.error) setError(p.error.message); else setProfiles((p.data??[]) as ProfileRow[]);
     setLoading(false);
   }
-  useEffect(() => { void load(); }, [month]);
-
-  function moveMonth(delta: number) {
-    const [y, m] = month.split("-").map(Number);
-    const d = new Date(y, m - 1 + delta, 1);
-    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  useEffect(()=>{void load();},[calendarMonth]);
+  useEffect(()=>{setMonth(calendarMonth);},[calendarMonth]);
+  function shiftMonth(delta:number) {
+    const [y,m]=calendarMonth.split("-").map(Number);
+    setCalendarMonth(monthKey(new Date(y,m-1+delta,1)));
   }
-  function openTimeDialog(employee: EmployeeRow, kind: "check_in" | "check_out") {
-    setTimeValue(baghdadTime());
-    setError("");
-    setNotice("");
-    setTimeDialog({ employee, kind });
+  function openTime(employee:EmployeeRow,kind:"check_in"|"check_out") {
+    setError("");setNotice("");setTime(nowBaghdad());setTimeDialog({employee,kind});
   }
   async function saveTime() {
-    if (!supabase || !timeDialog) return;
-    setBusy(true); setError(""); setNotice("");
-    const timestamp = localTimestamp(selectedDay, timeValue);
-    const existing = recordMap.get(`${timeDialog.employee.id}|${selectedDay}`);
-    const result = timeDialog.kind === "check_in"
-      ? existing
-        ? await supabase.from("attendance").update({ check_in: timestamp, status: "present" }).eq("id", existing.id)
-        : await supabase.from("attendance").insert({ employee_id: timeDialog.employee.id, attendance_date: selectedDay, check_in: timestamp, status: "present" })
-      : existing
-        ? await supabase.from("attendance").update({ check_out: timestamp, status: "present" }).eq("id", existing.id)
-        : await supabase.from("attendance").insert({ employee_id: timeDialog.employee.id, attendance_date: selectedDay, check_out: timestamp, status: "present" });
-    if (result.error) setError(result.error.message);
-    else {
-      setTimeDialog(null);
-      setNotice(ar ? "تم حفظ وقت الحضور بنجاح." : "Attendance time saved.");
-      await load();
-    }
+    if(!supabase||!timeDialog)return;
+    setBusy(true);setError("");setNotice("");
+    const old=recordMap.get(`${timeDialog.employee.id}|${selectedDate}`);
+    const value=stamp(selectedDate,time);
+    const result=timeDialog.kind==="check_in"
+      ? old ? await supabase.from("attendance").update({check_in:value,status:"present"}).eq("id",old.id) : await supabase.from("attendance").insert({employee_id:timeDialog.employee.id,attendance_date:selectedDate,check_in:value,status:"present"})
+      : old ? await supabase.from("attendance").update({check_out:value,status:"present"}).eq("id",old.id) : await supabase.from("attendance").insert({employee_id:timeDialog.employee.id,attendance_date:selectedDate,check_out:value,status:"present"});
+    if(result.error)setError(result.error.message);else{setTimeDialog(null);setNotice(ar?"تم حفظ وقت الدوام.":"Time record saved.");await load();}
     setBusy(false);
   }
-  async function markDayOff(employee: EmployeeRow) {
-    if (!supabase) return;
-    setBusy(true); setError(""); setNotice("");
-    const existing = recordMap.get(`${employee.id}|${selectedDay}`);
-    const payload = { employee_id: employee.id, attendance_date: selectedDay, check_in: null, check_out: null, status: "day_off" };
-    const result = existing
-      ? await supabase.from("attendance").update(payload).eq("id", existing.id)
-      : await supabase.from("attendance").insert(payload);
-    if (result.error) setError(result.error.message);
-    else { setNotice(ar ? "تم تسجيل يوم الإجازة." : "Day off recorded."); await load(); }
+  async function dayOff(employee:EmployeeRow) {
+    if(!supabase)return;
+    setBusy(true);setError("");setNotice("");
+    const old=recordMap.get(`${employee.id}|${selectedDate}`);
+    const payload={check_in:null,check_out:null,status:"day_off"};
+    const result=old?await supabase.from("attendance").update(payload).eq("id",old.id):await supabase.from("attendance").insert({employee_id:employee.id,attendance_date:selectedDate,...payload});
+    if(result.error)setError(result.error.message);else{setNotice(ar?"تم تسجيل يوم الإجازة.":"Day off recorded.");await load();}
     setBusy(false);
   }
-  function statusFor(employeeId: string, date: string) {
-    const row = recordMap.get(`${employeeId}|${date}`);
-    if (!row) return "absence";
-    if (row.status === "day_off" || row.status === "day-off" || row.status === "leave") return "leave";
-    return row.check_in || row.status === "present" ? "present" : "absence";
-  }
-  const selectedEmployee = employeeFilter === "all" ? null : employeeById.get(employeeFilter) ?? null;
-  const reportRows = useMemo(() => {
-    const rows: { employee: EmployeeRow; date: string; row: AttendanceRow | null; kind: string }[] = [];
-    const today = baghdadToday();
-    for (const employee of visibleEmployees) {
-      for (const date of dates) {
-        if (date > today) continue;
-        const row = recordMap.get(`${employee.id}|${date}`) ?? null;
-        const kind = !row ? "absence" : (row.status === "day_off" || row.status === "day-off" || row.status === "leave") ? "leave" : "present";
-        if (report === "all" || (report === "times" && row && (row.check_in || row.check_out)) || (report === "present" && kind === "present") || (report === "absence" && kind === "absence") || (report === "leave" && kind === "leave")) {
-          rows.push({ employee, date, row, kind });
-        }
-      }
-    }
-    return rows;
-  }, [visibleEmployees, dates, recordMap, report]);
+  const monthTitle = new Date(Number(calendarMonth.slice(0,4)),Number(calendarMonth.slice(5,7))-1,1).toLocaleDateString(ar?"ar-IQ":"en-US",{month:"long",year:"numeric"});
+  const weekdayNames = ar ? ["ح","ن","ث","ر","خ","ج","س"] : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const label = (en:string,arabic:string)=>ar?arabic:en;
 
-  const presentCount = records.filter(r => r.check_in || r.status === "present").length;
-  const completedCount = records.filter(r => Boolean(r.check_in && r.check_out)).length;
-  const absenceCount = visibleEmployees.reduce((sum, employee) => sum + dates.filter(d => d <= baghdadToday() && !recordMap.has(`${employee.id}|${d}`)).length, 0);
-  const text = {
-    records: ar ? "سجلات الشهر" : "Monthly records",
-    present: ar ? "أيام الحضور" : "Present days",
-    completed: ar ? "دخول وخروج مكتمل" : "Completed shifts",
-    absence: ar ? "أيام بلا سجل" : "No-record days",
-    employee: ar ? "الموظف" : "Employee",
-    date: ar ? "التاريخ" : "Date",
-    checkIn: ar ? "تسجيل دخول" : "Check In",
-    checkOut: ar ? "تسجيل خروج" : "Check Out",
-    dayOff: ar ? "يوم إجازة" : "Day Off",
-    allEmployees: ar ? "كل الموظفين" : "All employees",
-    calendar: ar ? "التقويم الشهري" : "Monthly calendar",
-    individual: ar ? "تقويم الموظف" : "Employee calendar",
-    selectedDay: ar ? "اليوم المحدد" : "Selected day",
-    report: ar ? "التقارير" : "Reports",
-    print: ar ? "طباعة التقرير" : "Print report",
-    refresh: ar ? "تحديث" : "Refresh",
-    noData: ar ? "لا توجد بيانات لهذا الشهر." : "No records for this month.",
-    noEmployees: ar ? "لا يوجد موظفون لعرضهم." : "No employees to display.",
-    saved: ar ? "تم الحفظ" : "Saved",
-    in: ar ? "دخول" : "In",
-    out: ar ? "خروج" : "Out",
-    off: ar ? "إجازة" : "Day off",
-    absent: ar ? "لا يوجد سجل" : "No record",
-    status: ar ? "الحالة" : "Status",
-    chooseTime: ar ? "حدد الوقت" : "Choose time",
-    save: ar ? "حفظ الوقت" : "Save time",
-    cancel: ar ? "إلغاء" : "Cancel",
-    all: ar ? "كل السجلات" : "All records",
-    presentOnly: ar ? "الحضور" : "Present",
-    absenceOnly: ar ? "الغياب / بلا سجل" : "Absence / no record",
-    leaveOnly: ar ? "الإجازات" : "Day off / leave",
-    timesOnly: ar ? "أوقات الدخول والخروج" : "Check-in / check-out times"
-  };
-
-  return <section className="attendance-workspace" dir={ar ? "rtl" : "ltr"}>
-    <div className="stats-grid attendance-stats">
-      <div className="stat-card"><div className="stat-icon blue"><CalendarDays size={18}/></div><span>{text.records}</span><strong>{records.length}</strong></div>
-      <div className="stat-card"><div className="stat-icon green"><UserRound size={18}/></div><span>{text.present}</span><strong>{presentCount}</strong></div>
-      <div className="stat-card"><div className="stat-icon violet"><Clock3 size={18}/></div><span>{text.completed}</span><strong>{completedCount}</strong></div>
-      <div className="stat-card"><div className="stat-icon amber"><CalendarDays size={18}/></div><span>{text.absence}</span><strong>{absenceCount}</strong></div>
+  return <section className="att-screen" dir={ar?"rtl":"ltr"}>
+    <style>{`
+      .att-screen{color:#e6edf7}.att-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:22px 24px;border:1px solid #35516d;border-radius:12px;background:linear-gradient(120deg,#1b2a3d,#1d3045);margin-bottom:14px}.att-head h2{margin:4px 0 6px;font-size:22px}.att-head p{margin:0;color:#a9b9ca;font-size:13px}.att-kicker{font-size:10px;letter-spacing:1.3px;color:#9cc7f3;font-weight:800}.att-refresh,.att-nav,.att-action{border:1px solid #344b63;background:#142235;color:#dce8f5;border-radius:7px;padding:9px 12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}.att-refresh:hover,.att-nav:hover{background:#203751}.att-panel{border:1px solid #344b63;background:#1b2939;border-radius:11px;overflow:hidden}.att-panel-title{padding:17px 20px;border-bottom:1px solid #34475c}.att-panel-title h3{margin:0 0 5px;font-size:15px}.att-panel-title p{margin:0;color:#a8b8ca;font-size:12px}.att-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;padding:0 15px 15px}.att-main{min-width:0}.att-datebar{padding:12px 0 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}.att-datebar strong{font-size:14px}.att-datebar span{font-size:11px;color:#a8b8ca}.att-datebar input,.att-calendar select{background:#142235;color:#e5edf8;border:1px solid #354b62;border-radius:7px;padding:8px}.att-table-wrap{overflow:auto;border:1px solid #34475c;border-radius:8px}.att-table{width:100%;border-collapse:collapse;min-width:680px}.att-table th{background:#1b2a3c;color:#93a6bc;text-transform:uppercase;font-size:10px;letter-spacing:.7px;text-align:left;padding:13px 12px;border-bottom:1px solid #3b5066}.att-table td{padding:12px;border-bottom:1px solid #2d4054;font-size:12px;color:#dbe5f1}.att-table tr:last-child td{border-bottom:0}.att-person{font-weight:700;color:#f0f5fb}.att-sub{display:block;color:#8297ae;font-size:10px;margin-top:4px}.att-time{font-variant-numeric:tabular-nums;color:#c5d4e5}.att-pill{display:inline-flex;padding:5px 8px;border-radius:20px;font-size:10px;font-weight:700}.att-pill.present{background:#123e36;color:#70d6b5}.att-pill.off{background:#4a3c16;color:#f4d36e}.att-pill.absent{background:#3b2a30;color:#e9a2a9}.att-actions{display:flex;gap:5px}.att-action{font-size:10px;padding:7px 8px;white-space:nowrap}.att-action.in{color:#78d8b5;border-color:#28634f}.att-action.out{color:#9bc5ff;border-color:#315c8d}.att-action.off{color:#f3d36d;border-color:#80692c}.att-calendar{border:1px solid #344b63;border-radius:9px;background:#172536;padding:12px;align-self:start;margin-top:0}.att-calendar label{display:block;color:#9fb2c7;font-size:10px;margin-bottom:6px}.att-calendar select{width:100%;font-size:11px;margin-bottom:9px}.att-cal-nav{display:flex;justify-content:space-between;align-items:center;margin:0 0 12px}.att-cal-nav strong{font-size:12px}.att-week,.att-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.att-week span{font-size:9px;color:#8ea5bf;padding:6px 0}.att-day{aspect-ratio:1;border:1px solid transparent;border-radius:5px;background:transparent;color:#dce8f5;font-size:10px;cursor:pointer}.att-day:hover{background:#243d59}.att-day.selected{background:#1d3d61;border-color:#4b8dd0;color:#b9d9ff}.att-day.off{background:#66521c;color:#ffe28b;border-color:#a18435}.att-day.today{box-shadow:inset 0 0 0 1px #5a91c7}.att-legend{display:flex;gap:7px;align-items:center;margin-top:12px;color:#91a8c0;font-size:9px}.att-legend i{width:8px;height:8px;border-radius:2px;background:#f4d36d;display:inline-block}.att-summary{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.att-chip{font-size:10px;color:#b6c7d9;background:#142235;border:1px solid #31475e;border-radius:6px;padding:6px 9px}.att-empty{padding:28px;text-align:center;color:#a7b8ca;font-size:12px}.att-alert{margin:10px 15px;padding:9px 12px;border-radius:7px;background:#173c34;color:#8de0bf;font-size:12px}.att-error{background:#492b32;color:#ffc0c7}.att-modal-bg{position:fixed;inset:0;background:#07111dcc;display:grid;place-items:center;z-index:1000;padding:16px}.att-modal{width:min(390px,100%);background:#1b2939;border:1px solid #405a75;border-radius:12px;padding:20px;box-shadow:0 20px 60px #0008}.att-modal h3{margin:0 0 5px}.att-modal p{color:#9eb1c6;font-size:12px;margin:0 0 16px}.att-modal label{display:block;font-size:12px;color:#c6d4e4}.att-modal input{display:block;width:100%;margin-top:7px;padding:10px;background:#101e2e;border:1px solid #3b526b;border-radius:7px;color:white}.att-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.att-modal-actions button{border-radius:7px;padding:9px 13px;cursor:pointer}.att-save{background:#347fc4;color:white;border:0}.att-cancel{background:#24364a;color:#dce8f5;border:1px solid #42566c}@media(max-width:900px){.att-layout{grid-template-columns:1fr}.att-calendar{grid-row:1}.att-head{padding:18px}.att-table{min-width:700px}}@media print{.att-head button,.att-calendar,.att-actions,.att-datebar input{display:none!important}.att-screen,.att-panel{background:white!important;color:#111!important}.att-table td,.att-table th{color:#111!important;background:white!important}}
+    `}</style>
+    <div className="att-head"><div><span className="att-kicker">PEOPLE OPERATIONS</span><h2>{label("Attendance","الحضور والانصراف")}</h2><p>{label("Select a date, enter the times if needed, and record check-in, check-out, or a day off for each active employee.","اختر التاريخ وسجّل وقت الدخول أو الخروج أو يوم الإجازة لكل موظف.")}</p></div><button className="att-refresh" onClick={()=>void load()} disabled={loading}><RefreshCw size={14}/>{label("Refresh","تحديث")}</button></div>
+    <div className="att-panel">
+      <div className="att-panel-title"><h3>{label("Attendance for","سجلات الحضور ليوم")} {selectedDate}</h3><p>{label("Times can be entered manually for any date.","يمكن إدخال الأوقات يدوياً لأي تاريخ.")}</p></div>
+      {error&&<div className="att-alert att-error">{error}</div>}{notice&&<div className="att-alert">{notice}</div>}
+      <div className="att-layout">
+        <div className="att-main">
+          <div className="att-datebar"><div><strong>{label("Daily attendance","الحضور اليومي")}</strong><div className="att-summary"><span className="att-chip">{label("Present","حاضر")}: {presentCount}</span><span className="att-chip">{label("Day off","إجازة")}: {offCount}</span><span className="att-chip">{label("No record","بدون تسجيل")}: {absentCount}</span></div></div><span>{selectedDate}</span></div>
+          <div className="att-table-wrap"><table className="att-table"><thead><tr><th>{label("Employee","الموظف")}</th><th>{label("Application user","حساب التطبيق")}</th><th>{label("Department","القسم")}</th><th>{label("Time record","أوقات الدوام")}</th><th>{label("Status","الحالة")}</th><th>{label("Actions","الإجراءات")}</th></tr></thead>
+          <tbody>{loading?<tr><td colSpan={6} className="att-empty">{label("Loading employees...","جارٍ تحميل الموظفين...")}</td></tr>:rows.length===0?<tr><td colSpan={6} className="att-empty">{label("No active employees to mark.","لا يوجد موظفون نشطون لتسجيل حضورهم.")}</td></tr>:dayRecords.map(({employee,record})=>{const off=["day_off","day-off","leave"].includes(record?.status??"");const present=Boolean(record?.check_in)||record?.status==="present";const profile=profileMap.get(employee.id);return <tr key={employee.id}><td><span className="att-person">{employee.full_name}</span><span className="att-sub">{employee.employee_code??"—"}</span></td><td>{profile?.is_active?profile.login_email??"—":label("Not linked","غير مرتبط")}</td><td>—</td><td><span className="att-time">{timeText(record?.check_in??null)} / {timeText(record?.check_out??null)}</span></td><td><span className={`att-pill ${off?"off":present?"present":"absent"}`}>{off?label("Day off","إجازة"):present?label("Present","حاضر"):label("Not marked","غير مسجل")}</span></td><td><div className="att-actions"><button className="att-action in" disabled={busy} onClick={()=>openTime(employee,"check_in")}><Check size={12}/>{label("IN","دخول")}</button><button className="att-action out" disabled={busy} onClick={()=>openTime(employee,"check_out")}><LogOut size={12}/>{label("OUT","خروج")}</button><button className="att-action off" disabled={busy} onClick={()=>void dayOff(employee)}><Palmtree size={12}/>{label("OFF","إجازة")}</button></div></td></tr>})}</tbody></table></div>
+          <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><button className="att-refresh" onClick={()=>window.print()}><Printer size={14}/>{label("Print attendance","طباعة الحضور")}</button></div>
+        </div>
+        <aside className="att-calendar"><label>{label("Employee calendar","تقويم الموظف")}</label><select value={selectedEmployee} onChange={e=>setSelectedEmployee(e.target.value)}><option value="all">{label("All employees","كل الموظفين")}</option>{activeEmployees.map(e=><option key={e.id} value={e.id}>{e.full_name}</option>)}</select>
+          <div className="att-cal-nav"><button className="att-nav" onClick={()=>shiftMonth(-1)}><ChevronLeft size={15}/></button><strong>{monthTitle}</strong><button className="att-nav" onClick={()=>shiftMonth(1)}><ChevronRight size={15}/></button></div>
+          <div className="att-week">{weekdayNames.map((d,i)=><span key={i}>{d}</span>)}</div>
+          <div className="att-days">{Array.from({length:monthDays.offset},(_,i)=><span key={"blank"+i}/>)}{monthDays.days.map(date=><button key={date} className={`att-day ${selectedDate===date?"selected":""} ${dayOffDates.has(date)?"off":""} ${todayBaghdad()===date?"today":""}`} onClick={()=>setSelectedDate(date)} title={dayOffDates.has(date)?label("At least one employee is off","موظف واحد على الأقل في إجازة"):date}>{Number(date.slice(-2))}</button>)}</div>
+          <div className="att-legend"><i/> {label("Yellow dates have at least one employee marked Day off.","التواريخ الصفراء تعني وجود موظف واحد على الأقل في إجازة.")}</div>
+        </aside>
+      </div>
     </div>
-
-    <div className="panel attendance-controls">
-      <div className="attendance-month">
-        <button className="icon-button" onClick={() => moveMonth(-1)} title={ar ? "الشهر السابق" : "Previous month"}><ChevronLeft size={19}/></button>
-        <strong>{monthLabel(month, ar)}</strong>
-        <button className="icon-button" onClick={() => moveMonth(1)} title={ar ? "الشهر التالي" : "Next month"}><ChevronRight size={19}/></button>
-      </div>
-      <input aria-label="Month" type="month" value={month} onChange={e => setMonth(e.target.value)} />
-      <label className="attendance-select-label">{ar ? "عرض الموظف" : "Employee view"}
-        <select value={employeeFilter} onChange={e => setEmployeeFilter(e.target.value)}>
-          <option value="all">{text.allEmployees}</option>
-          {employees.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
-        </select>
-      </label>
-      <div className="search-box attendance-search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder={ar ? "بحث باسم الموظف..." : "Search employee..."}/></div>
-      <button className="icon-button" onClick={() => void load()} title={text.refresh}><RefreshCw size={17}/></button>
-    </div>
-
-    <div className="panel attendance-actionbar">
-      <div><span className="eyebrow">{text.selectedDay}</span><strong>{dateLabel(selectedDay, ar, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</strong></div>
-      <input type="date" value={selectedDay} min={month + "-01"} max={dates[dates.length - 1]} onChange={e => setSelectedDate(e.target.value)} />
-      <span className="attendance-hint">{ar ? "اختر الموظف من الجدول لتنفيذ الإجراء على هذا التاريخ." : "Use the action buttons on each employee row for this date."}</span>
-    </div>
-
-    {error && <div className="error-box">{error}</div>}
-    {notice && <div className="attendance-notice">{notice}</div>}
-
-    {selectedEmployee ? <div className="panel">
-      <div className="panel-heading"><div><h3>{text.individual}: {selectedEmployee.full_name}</h3><p>{monthLabel(month, ar)}</p></div></div>
-      <div className="individual-calendar">
-        {dates.map(date => {
-          const row = recordMap.get(`${selectedEmployee.id}|${date}`);
-          const kind = statusFor(selectedEmployee.id, date);
-          return <button key={date} className={`attendance-day ${kind} ${date === selectedDay ? "selected" : ""}`} onClick={() => setSelectedDate(date)}>
-            <span>{dateLabel(date, ar, { day: "2-digit", weekday: "short" })}</span>
-            <strong>{kind === "leave" ? text.off : kind === "present" ? text.present : date <= baghdadToday() ? text.absent : "—"}</strong>
-            <small>{row?.check_in ? `${text.in}: ${timeLabel(row.check_in, ar)}` : ""}</small>
-            <small>{row?.check_out ? `${text.out}: ${timeLabel(row.check_out, ar)}` : ""}</small>
-          </button>;
-        })}
-      </div>
-      <div className="attendance-row-actions">
-        <button className="attendance-action in" disabled={busy} onClick={() => openTimeDialog(selectedEmployee, "check_in")}>{text.checkIn}</button>
-        <button className="attendance-action out" disabled={busy} onClick={() => openTimeDialog(selectedEmployee, "check_out")}>{text.checkOut}</button>
-        <button className="attendance-action off" disabled={busy} onClick={() => void markDayOff(selectedEmployee)}>{text.dayOff}</button>
-      </div>
-    </div> : <div className="panel">
-      <div className="panel-heading"><div><h3>{text.calendar}</h3><p>{ar ? "كل موظف في صف مستقل، مع حالة كل يوم من الشهر." : "One row per employee, with each day of the month."}</p></div></div>
-      {loading ? <div className="empty-cell">{ar ? "جارٍ تحميل البيانات..." : "Loading attendance..."}</div> : visibleEmployees.length === 0 ? <div className="empty-cell">{text.noEmployees}</div> :
-      <div className="table-wrap attendance-matrix-wrap"><table className="attendance-matrix">
-        <thead><tr><th className="employee-sticky">{text.employee}</th>{dates.map(date => <th key={date} className={date === selectedDay ? "current-column" : ""}>{Number(date.slice(-2))}</th>)}<th>{text.selectedDay}</th></tr></thead>
-        <tbody>{visibleEmployees.map(employee => <tr key={employee.id}>
-          <td className="employee-sticky"><strong>{employee.full_name}</strong><small>{employee.employee_code ?? ""}</small></td>
-          {dates.map(date => {
-            const row = recordMap.get(`${employee.id}|${date}`);
-            const kind = statusFor(employee.id, date);
-            return <td key={date} className={`${kind === "leave" ? "day-off-cell" : ""} ${date === selectedDay ? "current-column" : ""}`} onClick={() => setSelectedDate(date)} title={row ? `${timeLabel(row.check_in, ar)} / ${timeLabel(row.check_out, ar)}` : date}>
-              <span className={`day-mark ${kind}`}>{kind === "leave" ? "E" : kind === "present" ? "P" : date <= baghdadToday() ? "—" : ""}</span>
-            </td>;
-          })}
-          <td><div className="matrix-actions">
-            <button className="mini-action in" disabled={busy} onClick={() => openTimeDialog(employee, "check_in")} title={text.checkIn}>IN</button>
-            <button className="mini-action out" disabled={busy} onClick={() => openTimeDialog(employee, "check_out")} title={text.checkOut}>OUT</button>
-            <button className="mini-action off" disabled={busy} onClick={() => void markDayOff(employee)} title={text.dayOff}>OFF</button>
-          </div></td>
-        </tr>)}</tbody>
-      </table></div>}
-      <div className="attendance-legend"><span><i className="legend-dot present"/> {ar ? "حضور" : "Present"}</span><span><i className="legend-dot leave"/> {ar ? "إجازة" : "Day off"}</span><span><i className="legend-dot absence"/> {ar ? "لا يوجد سجل" : "No record"}</span></div>
-    </div>}
-
-    <div className="panel attendance-reports">
-      <div className="panel-heading"><div><h3>{text.report}</h3><p>{ar ? "تقرير قابل للطباعة حسب الموظف ونوع السجل." : "Printable report filtered by employee and record type."}</p></div><button className="primary-button" onClick={() => window.print()}><Printer size={16}/>{text.print}</button></div>
-      <div className="report-filters">
-        <select value={report} onChange={e => setReport(e.target.value as ReportKind)}>
-          <option value="all">{text.all}</option><option value="present">{text.presentOnly}</option><option value="absence">{text.absenceOnly}</option><option value="leave">{text.leaveOnly}</option><option value="times">{text.timesOnly}</option>
-        </select>
-        <span>{monthLabel(month, ar)} · {reportRows.length} {ar ? "سجل" : "rows"}</span>
-      </div>
-      <div className="table-wrap"><table className="attendance-report-table">
-        <thead><tr><th>{text.employee}</th><th>{text.date}</th><th>{text.checkIn}</th><th>{text.checkOut}</th><th>{text.status}</th></tr></thead>
-        <tbody>{reportRows.length === 0 ? <tr><td colSpan={5} className="empty-cell">{text.noData}</td></tr> : reportRows.map((item, index) => <tr key={`${item.employee.id}-${item.date}-${index}`}>
-          <td>{item.employee.full_name}</td><td>{dateLabel(item.date, ar, { day: "2-digit", month: "short", year: "numeric" })}</td>
-          <td>{timeLabel(item.row?.check_in ?? null, ar)}</td><td>{timeLabel(item.row?.check_out ?? null, ar)}</td>
-          <td><span className={`attendance-status ${item.kind}`}>{item.kind === "present" ? text.present : item.kind === "leave" ? text.off : text.absent}</span></td>
-        </tr>)}</tbody>
-      </table></div>
-      <p className="attendance-report-note">{ar ? "ملاحظة: «لا يوجد سجل» تعني عدم وجود تسجيل حضور أو إجازة في ذلك التاريخ؛ يمكن ضبط أيام العمل والعطل الأسبوعية لاحقاً حتى لا تُحسب العطلة غياباً." : "Note: “No record” means no attendance or leave entry exists for that date. Workdays and weekly holidays can be configured later to avoid counting non-working days as absence."}</p>
-    </div>
-
-    {timeDialog && <div className="modal-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setTimeDialog(null); }}>
-      <div className="employee-modal attendance-time-modal" role="dialog" aria-modal="true">
-        <div className="modal-heading"><div><span className="eyebrow">{timeDialog.kind === "check_in" ? text.checkIn : text.checkOut}</span><h2>{timeDialog.employee.full_name}</h2><p>{dateLabel(selectedDay, ar, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div><button className="icon-button" onClick={() => setTimeDialog(null)}>×</button></div>
-        <label>{text.chooseTime}<input type="time" value={timeValue} onChange={e => setTimeValue(e.target.value)} required /></label>
-        <div className="modal-actions"><button className="secondary-button" onClick={() => setTimeDialog(null)}>{text.cancel}</button><button className="primary-button" disabled={busy || !timeValue} onClick={() => void saveTime()}>{busy ? (ar ? "جارٍ الحفظ..." : "Saving...") : text.save}</button></div>
-      </div>
-    </div>}
+    {timeDialog&&<div className="att-modal-bg" onMouseDown={e=>{if(e.target===e.currentTarget)setTimeDialog(null)}}><div className="att-modal" role="dialog" aria-modal="true"><h3>{timeDialog.kind==="check_in"?label("Check-in time","وقت تسجيل الدخول"):label("Check-out time","وقت تسجيل الخروج")}</h3><p>{timeDialog.employee.full_name} · {selectedDate}</p><label>{label("Choose time","حدد الوقت")}<input type="time" value={time} onChange={e=>setTime(e.target.value)}/></label><div className="att-modal-actions"><button className="att-cancel" onClick={()=>setTimeDialog(null)}>{label("Cancel","إلغاء")}</button><button className="att-save" disabled={busy} onClick={()=>void saveTime()}>{busy?label("Saving...","جارٍ الحفظ..."):label("Save time","حفظ الوقت")}</button></div></div></div>}
   </section>;
 }
