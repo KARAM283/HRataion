@@ -49,9 +49,7 @@ export default function AccountManagement({ lang }: { lang: "en" | "ar" }) {
       body: { employee_id: employeeId, username, password },
     });
     if (invokeError) {
-      const detail = invokeError.context && typeof invokeError.context.json === "function"
-        ? await invokeError.context.json().catch(() => null) : null;
-      setError(detail?.error || invokeError.message);
+      setError(invokeError.message);
     } else if (data?.error) setError(data.error);
     else {
       setCreated({ email: data.email, password });
