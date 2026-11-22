@@ -3,7 +3,7 @@ import { KeyRound, RefreshCw, UserPlus, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Employee = { id: string; full_name: string; email: string | null; status: string | null };
-type Profile = { user_id: string; employee_id: string | null; role: string; is_active: boolean };
+type Profile = { user_id: string; employee_id: string | null; login_email: string | null; role: string; is_active: boolean };
 
 export default function AccountManagement({ lang }: { lang: "en" | "ar" }) {
   const ar = lang === "ar";
@@ -22,7 +22,7 @@ export default function AccountManagement({ lang }: { lang: "en" | "ar" }) {
     if (!supabase) return;
     const [e, p] = await Promise.all([
       supabase.from("employees").select("id,full_name,email,status").order("full_name"),
-      supabase.from("user_profiles").select("user_id,employee_id,role,is_active").eq("role", "employee"),
+      supabase.from("user_profiles").select("user_id,employee_id,login_email,role,is_active").eq("role", "employee"),
     ]);
     if (e.error) setError(e.error.message);
     else setEmployees((e.data ?? []) as Employee[]);
@@ -98,7 +98,7 @@ export default function AccountManagement({ lang }: { lang: "en" | "ar" }) {
       <div className="table-wrap"><table><thead><tr><th>{ar ? "الموظف" : "Employee"}</th><th>{ar ? "البريد الداخلي" : "Internal email"}</th><th>{ar ? "الحالة" : "Status"}</th></tr></thead><tbody>
         {profiles.length === 0 ? <tr><td colSpan={3} className="empty-cell">{ar ? "لا توجد حسابات موظفين بعد" : "No employee accounts yet"}</td></tr> : profiles.map(p => {
           const employee = employees.find(e => e.id === p.employee_id);
-          return <tr key={p.user_id}><td>{employee?.full_name ?? "—"}</td><td>{employee?.email ?? "—"}</td><td><span className={p.is_active ? "status active" : "status inactive"}>{p.is_active ? (ar ? "نشط" : "Active") : (ar ? "معطّل" : "Inactive")}</span></td></tr>;
+          return <tr key={p.user_id}><td>{employee?.full_name ?? "—"}</td><td>{p.login_email ?? "—"}</td><td><span className={p.is_active ? "status active" : "status inactive"}>{p.is_active ? (ar ? "نشط" : "Active") : (ar ? "معطّل" : "Inactive")}</span></td></tr>;
         })}
       </tbody></table></div>
     </div>
