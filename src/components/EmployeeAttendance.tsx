@@ -48,8 +48,8 @@ export default function EmployeeAttendance({ employeeId, lang, onSignOut }: { em
       </div>
       {error && <div className="error-box">{error}</div>}
       <div style={{ display: "grid", gap: 10 }}>
-        <button className="primary-button full-button" disabled={busy || loading || Boolean(record?.check_in)} onClick={checkIn}>{ar ? "تسجيل الحضور" : "Check In"}</button>
-        <button className="secondary-button" style={{ padding: 13 }} disabled={busy || loading || !record?.check_in || Boolean(record?.check_out)} onClick={checkOut}>{ar ? "تسجيل الانصراف" : "Check Out"}</button>
+        <button className="primary-button full-button" disabled={busy || loading || Boolean(record?.check_in)} onClick={checkIn}>{record?.check_in ? (ar ? "تم تسجيل الحضور ✓" : "Checked In ✓") : (ar ? "تسجيل الحضور" : "Check In")}</button>
+        <button className="secondary-button" style={{ padding: 13 }} disabled={busy || loading || !record?.check_in || Boolean(record?.check_out)} onClick={checkOut}>{record?.check_out ? (ar ? "تم تسجيل الانصراف ✓" : "Checked Out ✓") : (ar ? "تسجيل الانصراف" : "Check Out")}</button>
       </div>
       <p style={{ color: "#8b97a8", fontSize: 11, textAlign: "center", marginTop: 18 }}>{loading ? (ar ? "جارٍ تحميل السجل..." : "Loading attendance...") : (ar ? "هذه الواجهة مخصصة لتسجيل حضورك وانصرافك فقط." : "This portal is only for your own attendance records.")}</p>
     </section>
