@@ -97,6 +97,7 @@ Deno.serve(async (req: Request) => {
   const { error: linkError } = await admin.from("user_profiles").insert({
     user_id: created.user.id,
     employee_id: employeeId,
+    login_email: email,
     role: "employee",
     is_active: true,
   });
