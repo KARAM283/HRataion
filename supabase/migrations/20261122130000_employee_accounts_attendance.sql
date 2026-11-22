@@ -45,7 +45,7 @@ BEGIN
   SELECT * INTO v_row
   FROM public.attendance
   WHERE employee_id = v_employee_id
-    AND attendance_date = CURRENT_DATE
+    AND attendance_date = (NOW() AT TIME ZONE 'Asia/Baghdad')::date
   ORDER BY created_at DESC
   LIMIT 1
   FOR UPDATE;
@@ -61,7 +61,7 @@ BEGIN
     RETURNING * INTO v_row;
   ELSE
     INSERT INTO public.attendance (employee_id, attendance_date, check_in, status)
-    VALUES (v_employee_id, CURRENT_DATE, NOW(), 'present')
+    VALUES (v_employee_id, (NOW() AT TIME ZONE 'Asia/Baghdad')::date, NOW(), 'present')
     RETURNING * INTO v_row;
   END IF;
 
@@ -92,7 +92,7 @@ BEGIN
   UPDATE public.attendance
   SET check_out = NOW()
   WHERE employee_id = v_employee_id
-    AND attendance_date = CURRENT_DATE
+    AND attendance_date = (NOW() AT TIME ZONE 'Asia/Baghdad')::date
     AND check_in IS NOT NULL
     AND check_out IS NULL
   RETURNING * INTO v_row;
