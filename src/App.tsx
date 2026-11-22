@@ -8,7 +8,8 @@ import AttendanceManagement from "./components/AttendanceManagement";
 import { HRModules } from "./components/HRModules";
 import CVBank from "./components/CVBank";
 
-type Employee = { id: string; employee_code: string | null; full_name: string; email: string | null; phone: string | null; position: string | null; status: string | null; hire_date: string | null; salary: number | null; department_id: string | null };\ntype Department = { id:string; name:string };
+type Employee = { id: string; employee_code: string | null; full_name: string; email: string | null; phone: string | null; position: string | null; status: string | null; hire_date: string | null; salary: number | null; department_id: string | null };
+type Department = { id:string; name:string };
 type Texts = typeof copy.en | typeof copy.ar;
 type Section = "dashboard" | "employees" | "attendance" | "leaves" | "payroll" | "documents" | "cvbank" | "reports" | "settings" | "accounts";
 const copy = {
@@ -30,7 +31,8 @@ export default function App() {
   const [password,setPassword] = useState("");
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
-  const [employees,setEmployees] = useState<Employee[]>([]);\n  const [departments,setDepartments] = useState<Department[]>([]);
+  const [employees,setEmployees] = useState<Employee[]>([]);
+  const [departments,setDepartments] = useState<Department[]>([]);
   const [loading,setLoading] = useState(false);
   const [query,setQuery] = useState("");
   const [modal,setModal] = useState(false);
@@ -69,8 +71,9 @@ export default function App() {
   async function loadEmployees() {
     if (!supabase || !session || role !== "admin") return;
     setLoading(true);
-    const {data,error:err} = await supabase.from("employees").select("id,employee_code,full_name,email,phone,position,status,hire_date,salary").order("created_at",{ascending:false});
+    const [{data,error:err},{data:deptData,error:deptError}] = await Promise.all([supabase.from("employees").select("id,employee_code,full_name,email,phone,position,status,hire_date,salary,department_id").order("created_at",{ascending:false}),supabase.from("departments").select("*")]);
     if (err) setError(err.message); else setEmployees((data ?? []) as Employee[]);
+    if (deptError) setError(deptError.message); else setDepartments((deptData??[]).map((d:any)=>({id:d.id,name:d.name??d.department_name??d.title??d.code??"Department"})));
     setLoading(false);
   }
   useEffect(() => { void loadEmployees(); }, [session, role]);
@@ -95,7 +98,9 @@ export default function App() {
     else { setModal(false); setForm({full_name:"",employee_code:"",email:"",phone:"",position:"",hire_date:"",salary:"",department_id:""}); await loadEmployees(); }
     setBusy(false);
   }
-\n  async function deleteEmployee(id:string) { if(!supabase || !window.confirm(rtl?"هل تريد حذف ملف الموظف؟":"Delete this employee profile?")) return; const {error:err}=await supabase.from("employees").delete().eq("id",id); if(err)setError(err.message); else await loadEmployees(); }\n  const filtered = useMemo(() => employees.filter(x => [x.full_name,x.employee_code,x.email,x.position].some(v => (v ?? "").toLowerCase().includes(query.toLowerCase()))),[employees,query]);
+
+  async function deleteEmployee(id:string) { if(!supabase || !window.confirm(rtl?"هل تريد حذف ملف الموظف؟":"Delete this employee profile?")) return; const {error:err}=await supabase.from("employees").delete().eq("id",id); if(err)setError(err.message); else await loadEmployees(); }
+  const filtered = useMemo(() => employees.filter(x => [x.full_name,x.employee_code,x.email,x.position].some(v => (v ?? "").toLowerCase().includes(query.toLowerCase()))),[employees,query]);
 
   if (!isSupabaseConfigured) return <div className="setup-screen" dir={rtl?"rtl":"ltr"}><div className="setup-card"><div className="brand-mark"><ShieldCheck size={26}/></div><span className="eyebrow">HRATAION · HR MANAGEMENT</span><h1>{t.configTitle}</h1><p>{t.configHint}</p><div className="setup-note"><Activity size={18}/><span>{t.notConfigured}</span></div><button className="language-button" onClick={()=>setLang(rtl?"en":"ar")}><Globe2 size={16}/>{rtl?"English":"العربية"}</button></div></div>;
 
