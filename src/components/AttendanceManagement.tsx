@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Printer, RefreshCw, UserRound, Check, LogOut, Palmtree } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer, RefreshCw, Check, LogOut, Palmtree } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type AttendanceRow = { id: string; employee_id: string; attendance_date: string; check_in: string | null; check_out: string | null; status: string | null };
@@ -7,13 +7,11 @@ type EmployeeRow = { id: string; full_name: string; employee_code: string | null
 type ProfileRow = { employee_id: string | null; login_email: string | null; is_active: boolean };
 const todayBaghdad = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const nowBaghdad = () => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
-const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
 const timeText = (v: string | null) => v ? new Date(v).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Baghdad"}) : "—";
 const stamp = (date: string,time: string) => new Date(`${date}T${time}:00+03:00`).toISOString();
 
 export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
   const ar = lang === "ar";
-  const [month,setMonth] = useState(monthKey(new Date()));
   const [selectedDate,setSelectedDate] = useState(todayBaghdad());
   const [employees,setEmployees] = useState<EmployeeRow[]>([]);
   const [profiles,setProfiles] = useState<ProfileRow[]>([]);
@@ -59,7 +57,6 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
     setLoading(false);
   }
   useEffect(()=>{void load();},[calendarMonth]);
-  useEffect(()=>{setMonth(calendarMonth);},[calendarMonth]);
   function shiftMonth(delta:number) {
     const [y,m]=calendarMonth.split("-").map(Number);
     setCalendarMonth(monthKey(new Date(y,m-1+delta,1)));
