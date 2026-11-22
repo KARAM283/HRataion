@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, CSSProperties } from "react";
-import { KeyRound, RefreshCw, UserPlus, Users } from "lucide-react";
+import { KeyRound, RefreshCw, UserPlus } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Employee = { id: string; full_name: string; email: string | null; status: string | null };
