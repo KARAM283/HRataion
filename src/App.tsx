@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Activity, BriefcaseBusiness, CalendarCheck, CalendarDays, ChartNoAxesCombined, ChevronDown, CircleHelp, FileText, Globe2, LayoutDashboard, LogOut, Plus, Search, Settings, ShieldCheck, Users, Wallet, X, UserCog, Trash2 } from "lucide-react";
+import { Activity, BriefcaseBusiness, CalendarCheck, ChartNoAxesCombined, ChevronDown, CircleHelp, Globe2, LayoutDashboard, LogOut, Plus, Search, Settings, ShieldCheck, Users, X, UserCog, Trash2 } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import AccountManagement from "./components/AccountManagement";
 import EmployeeAttendance from "./components/EmployeeAttendance";
