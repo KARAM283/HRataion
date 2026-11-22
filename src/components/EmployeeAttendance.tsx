@@ -28,14 +28,14 @@ export default function EmployeeAttendance({ employeeId, lang, onSignOut }: { em
   async function checkIn() {
     if (!supabase) return;
     setBusy(true); setError("");
-    const { error: err } = await supabase.from("attendance").insert({ employee_id: employeeId, attendance_date: localDate(), check_in: new Date().toISOString(), status: "present" });
+    const { error: err } = await supabase.rpc("employee_check_in");
     if (err) setError(err.message); else await refresh();
     setBusy(false);
   }
   async function checkOut() {
     if (!supabase || !record) return;
     setBusy(true); setError("");
-    const { error: err } = await supabase.from("attendance").update({ check_out: new Date().toISOString() }).eq("id", record.id);
+    const { error: err } = await supabase.rpc("employee_check_out");
     if (err) setError(err.message); else await refresh();
     setBusy(false);
   }
