@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Printer, RefreshCw, Search, FileSpreadsheet } from "lucide-react";
+import { Printer, RefreshCw, Search } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
 type Attendance={id:string;employee_id:string;attendance_date:string;check_in:string|null;check_out:string|null;status:string|null};
