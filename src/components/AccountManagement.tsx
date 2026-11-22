@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent, CSSProperties } from "react";
 import { KeyRound, RefreshCw, UserPlus, Users } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -40,7 +41,7 @@ export default function AccountManagement({ lang }: { lang: "en" | "ar" }) {
     setCreated(null);
   }
 
-  async function createAccount(event: React.FormEvent) {
+  async function createAccount(event: FormEvent) {
     event.preventDefault();
     if (!supabase || !employeeId) return;
     setBusy(true); setError(""); setCreated(null);
@@ -105,4 +106,4 @@ export default function AccountManagement({ lang }: { lang: "en" | "ar" }) {
   </section>;
 }
 
-const fieldStyle: React.CSSProperties = { width: "100%", padding: "11px 12px", marginTop: 7, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", color: "#26354b", font: "inherit", fontSize: 12 };
+const fieldStyle: CSSProperties = { width: "100%", padding: "11px 12px", marginTop: 7, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", color: "#26354b", font: "inherit", fontSize: 12 };
