@@ -476,3 +476,38 @@ html[data-theme="dark"] body:before{background:radial-gradient(ellipse at 12% 12
 html[data-theme="dark"] body:after{opacity:.12}
 @media(max-width:1100px){.blue-line-sidebar-brand{flex-direction:column;gap:0}.blue-line-sidebar-brand .blue-line-mark.compact{transform:scale(.48);transform-origin:center;margin:0;width:43px;height:22px}.blue-line-sidebar-wordmark{font-size:8px;letter-spacing:.6px}}
 @media(max-width:720px){.blue-line-mark{width:58px;flex-basis:58px;transform:scale(.82);transform-origin:left center;margin-inline-end:-7px}.blue-line-wordmark{font-size:20px}.blue-line-wordmark small{font-size:7px}}
+
+
+/* HRration brand system — original teal, warm ivory and coral identity */
+:root{--brand-teal:#0e928a;--brand-teal-deep:#08766f;--brand-ivory:#f6eecc;--brand-coral:#ff7a6e;--brand-ink:#163c3a;--brand-mist:#e9f6f3}
+body{font-family:"Nunito Sans","IBM Plex Sans Arabic",sans-serif;background:#f2f7f5}
+.primary-button{background:linear-gradient(135deg,#0e928a,#08766f);box-shadow:0 7px 18px rgba(14,146,138,.2)}
+.primary-button:hover{background:#08766f}
+.nav-item.selected{background:rgba(14,146,138,.14);color:#08766f}
+.nav-item.selected i{background:#ff7a6e}
+.blue,.stat-icon.blue,.quick-icon.blue{background:#e0f3ef;color:#0e928a}
+.top-avatar,.avatar{background:#dff1ed;color:#08766f}
+.search-box:focus-within,.login-form input:focus,.employee-modal input:focus{border-color:#0e928a;box-shadow:0 0 0 3px rgba(14,146,138,.13)}
+.hrration-logo{display:block;object-fit:contain}
+.login-logo{width:min(245px,42vw);height:auto;filter:drop-shadow(0 5px 16px rgba(0,0,0,.12))}
+.sidebar-logo{width:156px;height:48px;object-position:left center;filter:drop-shadow(0 2px 8px rgba(0,0,0,.12))}
+.login-screen{background:#f5f6ee}
+.login-stage{background:radial-gradient(ellipse at 52% 8%,rgba(246,238,204,.19),transparent 30%),radial-gradient(ellipse at 15% 85%,rgba(255,122,110,.14),transparent 35%),linear-gradient(135deg,#08766f 0%,#0e928a 52%,#075e5a 100%)}
+.login-stage:before{border-color:rgba(246,238,204,.16)}
+.login-stage-pattern{opacity:.24}
+.login-message h2{color:#fff8e4}
+.login-message p{color:rgba(255,248,228,.8)}
+.login-message .eyebrow,.login-stage-foot{color:#f6eecc}
+.login-form{border:1px solid rgba(246,238,204,.25)}
+.login-form .eyebrow{color:#0e928a}
+.login-form h1{color:#163c3a}
+.login-form>p{color:#6b8580}
+.login-form label{color:#47615d}
+.login-form input{background:#fbfcf8;border-color:#dce9e4;color:#163c3a}
+.secure-note{color:#78918c}
+.theme-dark .sidebar{background:rgba(8,37,37,.84)}
+.theme-dark .nav-item.selected{background:rgba(14,146,138,.24);color:#b7eee5}
+.theme-dark .primary-button{background:linear-gradient(135deg,#13aaa0,#08766f)}
+.theme-dark .main-area,.theme-dark .page-content{color:#e5f2ef}
+.theme-dark .login-stage{background:radial-gradient(ellipse at 52% 8%,rgba(246,238,204,.1),transparent 30%),radial-gradient(ellipse at 15% 85%,rgba(255,122,110,.1),transparent 35%),linear-gradient(135deg,#062f2d,#075e5a 55%,#042b2a)}
+@media(max-width:720px){.sidebar-logo{width:90px;height:34px}.login-logo{width:190px}}
