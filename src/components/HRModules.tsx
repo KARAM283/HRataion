@@ -35,6 +35,7 @@ export function HRModules({section,lang}:{section:"leaves"|"payroll"|"documents"
   if(l.error)setError(l.error.message);else setLeaves((l.data??[]) as Leave[]);
   if(p.error)setError(p.error.message);else setPayroll((p.data??[]) as Payroll[]);
   if(d.error)setError(d.error.message);else setDocs(d.data??[]);
+  if(a.error)setError(a.error.message);else setAttendance((a.data??[]) as Attendance[]);
   setLoading(false);
  }
  useEffect(()=>{void load()},[]);
