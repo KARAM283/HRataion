@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
-import { Plus, RefreshCw, Check, X, Printer, UploadCloud, FileText, Search, Download } from "lucide-react";
+import { Plus, RefreshCw, Check, X, Printer, UploadCloud, Download } from "lucide-react";
 
 type Lang = "en" | "ar";
 type Employee = { id:string; full_name:string; salary:number|null };
