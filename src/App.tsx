@@ -32,7 +32,8 @@ export default function App() {
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState("");
   const [employees,setEmployees] = useState<Employee[]>([]);
-  const [departments,setDepartments] = useState<Department[]>([]);\n  const [metrics,setMetrics] = useState({present:0,onLeave:0,payroll:0});
+  const [departments,setDepartments] = useState<Department[]>([]);
+  const [metrics,setMetrics] = useState({present:0,onLeave:0,payroll:0});
   const [loading,setLoading] = useState(false);
   const [query,setQuery] = useState("");
   const [modal,setModal] = useState(false);
@@ -78,7 +79,10 @@ export default function App() {
   }
   useEffect(() => { void loadEmployees(); void loadDashboardMetrics(); }, [session, role]);
 
-\n  async function loadDashboardMetrics(){ if(!supabase||!session||role!=="admin")return; const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); const [a,l,p]=await Promise.all([supabase.from("attendance").select("id",{count:"exact",head:true}).eq("attendance_date",today).eq("status","present"),supabase.from("leave_requests").select("id",{count:"exact",head:true}).eq("status","approved").lte("start_date",today).gte("end_date",today),supabase.from("payroll").select("net_salary").eq("payroll_month",Number(today.slice(5,7))).eq("payroll_year",Number(today.slice(0,4)))]); setMetrics({present:a.count??0,onLeave:l.count??0,payroll:(p.data??[]).reduce((sum:any,row:any)=>sum+Number(row.net_salary??0),0)}); }\n\n  async function signIn(e: FormEvent) {
+
+  async function loadDashboardMetrics(){ if(!supabase||!session||role!=="admin")return; const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Baghdad",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()); const [a,l,p]=await Promise.all([supabase.from("attendance").select("id",{count:"exact",head:true}).eq("attendance_date",today).eq("status","present"),supabase.from("leave_requests").select("id",{count:"exact",head:true}).eq("status","approved").lte("start_date",today).gte("end_date",today),supabase.from("payroll").select("net_salary").eq("payroll_month",Number(today.slice(5,7))).eq("payroll_year",Number(today.slice(0,4)))]); setMetrics({present:a.count??0,onLeave:l.count??0,payroll:(p.data??[]).reduce((sum:any,row:any)=>sum+Number(row.net_salary??0),0)}); }
+
+  async function signIn(e: FormEvent) {
     e.preventDefault(); if (!supabase) return;
     setBusy(true); setError("");
     const {error:err} = await supabase.auth.signInWithPassword({email,password});
