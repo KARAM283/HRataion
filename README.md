@@ -1,4 +1,4 @@
-# HRataion — HR Manager
+# HRration — HR Manager
 
 Bilingual (Arabic / English) human-resources workspace built with React, Vite, TypeScript and Supabase.
 
