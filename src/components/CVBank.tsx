@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { Plus, RefreshCw, UploadCloud, FileText, Search, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, UploadCloud, FileText, Search, Trash2 } from "lucide-react";
 
 type Pipeline={id:string;name:string};
 type Candidate={id:string;full_name:string;phone:string|null;email:string|null;position:string|null;pipeline_id:string|null;cv_path:string|null;notes:string|null;created_at:string};
