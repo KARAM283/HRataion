@@ -24,7 +24,7 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
   const [notice,setNotice] = useState("");
-  const [calendarMonth,setCalendarMonth] = useState(month);
+  const [calendarMonth,setCalendarMonth] = useState(monthKey(new Date()));
 
   const monthDays = useMemo(() => {
     const [y,m] = calendarMonth.split("-").map(Number);
