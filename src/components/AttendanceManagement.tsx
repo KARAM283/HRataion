@@ -11,7 +11,6 @@ type AttendanceRow = {
   status: string | null;
 };
 type EmployeeRow = { id: string; full_name: string; employee_code: string | null };
-type ActionKind = "check_in" | "check_out" | "day_off";
 type ReportKind = "all" | "present" | "absence" | "leave" | "times";
 
 function currentMonth() {
@@ -108,12 +107,13 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
     setBusy(true); setError(""); setNotice("");
     const timestamp = localTimestamp(selectedDay, timeValue);
     const existing = recordMap.get(`${timeDialog.employee.id}|${selectedDay}`);
-    const payload = timeDialog.kind === "check_in"
-      ? { employee_id: timeDialog.employee.id, attendance_date: selectedDay, check_in: timestamp, status: "present" }
-      : { employee_id: timeDialog.employee.id, attendance_date: selectedDay, check_out: timestamp, status: "present" };
-    const result = existing
-      ? await supabase.from("attendance").update(payload).eq("id", existing.id)
-      : await supabase.from("attendance").insert(payload);
+    const result = timeDialog.kind === "check_in"
+      ? existing
+        ? await supabase.from("attendance").update({ check_in: timestamp, status: "present" }).eq("id", existing.id)
+        : await supabase.from("attendance").insert({ employee_id: timeDialog.employee.id, attendance_date: selectedDay, check_in: timestamp, status: "present" })
+      : existing
+        ? await supabase.from("attendance").update({ check_out: timestamp, status: "present" }).eq("id", existing.id)
+        : await supabase.from("attendance").insert({ employee_id: timeDialog.employee.id, attendance_date: selectedDay, check_out: timestamp, status: "present" });
     if (result.error) setError(result.error.message);
     else {
       setTimeDialog(null);
@@ -158,7 +158,6 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
   }, [visibleEmployees, dates, recordMap, report]);
 
   const presentCount = records.filter(r => r.check_in || r.status === "present").length;
-  const leaveCount = records.filter(r => ["day_off", "day-off", "leave"].includes(r.status ?? "")).length;
   const completedCount = records.filter(r => Boolean(r.check_in && r.check_out)).length;
   const absenceCount = visibleEmployees.reduce((sum, employee) => sum + dates.filter(d => d <= baghdadToday() && !recordMap.has(`${employee.id}|${d}`)).length, 0);
   const text = {
