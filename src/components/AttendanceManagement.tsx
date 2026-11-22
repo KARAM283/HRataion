@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase";
 type AttendanceRow = { id: string; employee_id: string; attendance_date: string; check_in: string | null; check_out: string | null; status: string | null };
 type EmployeeRow = { id: string; full_name: string; employee_code: string | null; status?: string | null };
 type ProfileRow = { employee_id: string | null; login_email: string | null; is_active: boolean };
+const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
 const todayBaghdad = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const nowBaghdad = () => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
 const timeText = (v: string | null) => v ? new Date(v).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Baghdad"}) : "—";
