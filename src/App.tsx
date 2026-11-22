@@ -64,13 +64,13 @@ export default function App() {
   }, [session]);
 
   async function loadEmployees() {
-    if (!supabase || !session) return;
+    if (!supabase || !session || role !== "admin") return;
     setLoading(true);
     const {data,error:err} = await supabase.from("employees").select("id,employee_code,full_name,email,phone,position,status,hire_date,salary").order("created_at",{ascending:false});
     if (err) setError(err.message); else setEmployees((data ?? []) as Employee[]);
     setLoading(false);
   }
-  useEffect(() => { void loadEmployees(); }, [session]);
+  useEffect(() => { void loadEmployees(); }, [session, role]);
 
   async function signIn(e: FormEvent) {
     e.preventDefault(); if (!supabase) return;
