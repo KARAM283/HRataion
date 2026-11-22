@@ -10,7 +10,7 @@ type AttendanceRow = {
   check_out: string | null;
   status: string | null;
 };
-type EmployeeRow = { id: string; full_name: string; employee_code: string | null; department: string | null };
+type EmployeeRow = { id: string; full_name: string; employee_code: string | null };
 
 function currentMonth() {
   const d = new Date();
@@ -52,7 +52,7 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
         .lte("attendance_date", end)
         .order("attendance_date", { ascending: false }),
       supabase.from("employees")
-        .select("id,full_name,employee_code,department")
+        .select("id,full_name,employee_code")
         .order("full_name", { ascending: true })
     ]);
     if (attendanceResult.error) setError(attendanceResult.error.message);
