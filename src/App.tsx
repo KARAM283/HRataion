@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import type { FormEvent } from "react";
 import { Activity, BriefcaseBusiness, CalendarCheck, ChartNoAxesCombined, ChevronDown, CircleHelp, Globe2, LayoutDashboard, LogOut, Plus, Search, Settings, ShieldCheck, Users, X, UserCog, Trash2, Moon, Sun } from "lucide-react";
@@ -44,7 +44,7 @@ export default function App() {
   const [form,setForm] = useState({full_name:"",employee_code:"",email:"",phone:"",position:"",hire_date:"",salary:"",department_id:""});
   const t = copy[lang];
   const rtl = lang === "ar";
-  useEffect(() => { document.documentElement.dataset.theme = theme; window.localStorage.setItem("hrration-theme",theme); }, [theme]);
+  useLayoutEffect(() => { document.documentElement.dataset.theme = theme; window.localStorage.setItem("hrration-theme",theme); }, [theme]);
 
   useEffect(() => {
     if (!supabase) return;
