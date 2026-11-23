@@ -23,7 +23,7 @@ Deno.serve(async (req: Request) => {
     return respond({ error: "Server is missing Supabase admin configuration." }, 500);
   }
 
-  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\\s+/i, "");
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) return respond({ error: "Authentication required." }, 401);
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
