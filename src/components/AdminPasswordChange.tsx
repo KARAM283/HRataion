@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent, CSSProperties } from "react";
 import { KeyRound, ShieldCheck, LockKeyhole } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -27,7 +28,7 @@ export default function AdminPasswordChange({ lang }: { lang: "en" | "ar" }) {
     return () => { active = false; };
   }, []);
 
-  async function changePassword(event: React.FormEvent) {
+  async function changePassword(event: FormEvent) {
     event.preventDefault();
     if (!supabase) return;
     setError("");
@@ -85,4 +86,4 @@ export default function AdminPasswordChange({ lang }: { lang: "en" | "ar" }) {
   </section>;
 }
 
-const fieldStyle: React.CSSProperties = { width: "100%", padding: "11px 12px", marginTop: 7, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", color: "#26354b", font: "inherit", fontSize: 13 };
+const fieldStyle: CSSProperties = { width: "100%", padding: "11px 12px", marginTop: 7, border: "1px solid #e2e8f0", borderRadius: 8, background: "#fff", color: "#26354b", font: "inherit", fontSize: 13 };
