@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Printer, RefreshCw, Search, Upload, FileText, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 
 type Attendance={id:string;employee_id:string;attendance_date:string;check_in:string|null;check_out:string|null;status:string|null};
 type Employee={id:string;full_name:string;employee_code:string|null};
@@ -8,6 +9,7 @@ type ReportTemplate={path:string;name:string;type:string};
 const TEMPLATE_KEY="hrration.report-template.v1";
 async function renderPdfTemplate(file:Blob):Promise<string>{
  const pdfjs=await import("pdfjs-dist/legacy/build/pdf.mjs");
+ pdfjs.GlobalWorkerOptions.workerSrc=pdfWorker;
  const data=await file.arrayBuffer();
  const pdf=await pdfjs.getDocument({data}).promise;
  const page=await pdf.getPage(1);const viewport=page.getViewport({scale:2});
