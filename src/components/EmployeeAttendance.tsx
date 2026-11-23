@@ -26,20 +26,46 @@ export default function EmployeeAttendance({ employeeId, lang, theme, onThemeTog
     setLoading(false);
   }
   useEffect(() => { void refresh(); }, [employeeId]);
-  async function checkIn() {
-    if (!supabase) return;
-    setBusy(true); setError("");
-    const { error: err } = await supabase.rpc("employee_check_in");
-    if (err) setError(err.message); else await refresh();
-    setBusy(false);
+  function getCurrentLocation(): Promise<GeolocationPosition> {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error(ar ? "متصفحك لا يدعم تحديد الموقع." : "Your browser does not support location services."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (geoError) => {
+          const message = geoError.code === geoError.PERMISSION_DENIED
+            ? (ar ? "فعّل صلاحية الموقع للمتصفح حتى تسجل الحضور." : "Allow location access in your browser to record attendance.")
+            : geoError.code === geoError.TIMEOUT
+              ? (ar ? "تعذر تحديد موقعك. حاول مرة ثانية." : "Location timed out. Please try again.")
+              : (ar ? "تعذر تحديد موقعك. تأكد من تشغيل GPS." : "Unable to get your location. Make sure GPS is enabled.");
+          reject(new Error(message));
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
   }
-  async function checkOut() {
-    if (!supabase || !record) return;
+  async function submitAttendance(action: "check_in" | "check_out") {
+    if (!supabase || (action === "check_out" && !record)) return;
     setBusy(true); setError("");
-    const { error: err } = await supabase.rpc("employee_check_out");
-    if (err) setError(err.message); else await refresh();
-    setBusy(false);
+    try {
+      const position = await getCurrentLocation();
+      const { latitude, longitude, accuracy } = position.coords;
+      const { error: err } = await supabase.rpc(
+        action === "check_in" ? "employee_check_in" : "employee_check_out",
+        { p_latitude: latitude, p_longitude: longitude, p_accuracy: accuracy }
+      );
+      if (err) setError(err.message);
+      else await refresh();
+    } catch (locationError) {
+      setError(locationError instanceof Error ? locationError.message : (ar ? "تعذر التحقق من الموقع." : "Unable to verify your location."));
+    } finally {
+      setBusy(false);
+    }
   }
+  async function checkIn() { await submitAttendance("check_in"); }
+  async function checkOut() { await submitAttendance("check_out"); }
   return <div className={`login-screen employee-portal ${theme==="dark"?"theme-dark":""}`} dir={ar ? "rtl" : "ltr"}>
     <GlassCard className="employee-clock-panel" style={{ width: "min(100%, 480px)", padding: 28 }}>
       <div className="panel-heading"><div><img className="hrration-logo employee-logo" src="/hrration-logo.svg" alt="HRration"/><h3 style={{ fontSize: 22, marginTop: 8 }}>{ar ? "الحضور والانصراف" : "Attendance"}</h3><p>{new Date().toLocaleDateString(ar ? "ar-IQ" : "en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p></div><div className="employee-portal-actions"><button className="icon-button" onClick={onThemeToggle} title={theme==="light"?"Dark mode":"Light mode"}>{theme==="light"?<Moon size={17}/>:<Sun size={17}/>}</button><button className="icon-button" onClick={onSignOut} title={ar ? "تسجيل الخروج" : "Sign out"}><LogOut size={18}/></button></div></div>
