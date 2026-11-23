@@ -12,17 +12,33 @@ export default function AdminPasswordChange({ lang }: { lang: "en" | "ar" }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
+  async function getAuthorizationHeader() {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (!data.session?.access_token) {
+      throw new Error(ar ? "انتهت جلسة الدخول. سجّل الدخول مجدداً." : "Your session has expired. Please sign in again.");
+    }
+    return { Authorization: `Bearer ${data.session.access_token}` };
+  }
+
   useEffect(() => {
     let active = true;
     async function loadStatus() {
       if (!supabase) return;
-      const { data, error: invokeError } = await supabase.functions.invoke("admin-change-own-password", {
-        body: { action: "status" },
-      });
-      if (!active) return;
-      if (invokeError) setError(invokeError.message);
-      else if (data?.error) setError(data.error);
-      else setAllowed(data?.allowed === true);
+      try {
+        const headers = await getAuthorizationHeader();
+        const { data, error: invokeError } = await supabase.functions.invoke("admin-change-own-password", {
+          body: { action: "status" },
+          headers,
+        });
+        if (!active) return;
+        if (invokeError) setError(invokeError.message);
+        else if (data?.error) setError(data.error);
+        else setAllowed(data?.allowed === true);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Unable to verify your session.");
+      }
     }
     void loadStatus();
     return () => { active = false; };
@@ -42,18 +58,25 @@ export default function AdminPasswordChange({ lang }: { lang: "en" | "ar" }) {
       return;
     }
     setBusy(true);
-    const { data, error: invokeError } = await supabase.functions.invoke("admin-change-own-password", {
-      body: { new_password: password },
-    });
-    if (invokeError) setError(invokeError.message);
-    else if (data?.error) setError(data.error);
-    else {
-      setAllowed(false);
-      setSuccess(true);
-      setPassword("");
-      setConfirm("");
+    try {
+      const headers = await getAuthorizationHeader();
+      const { data, error: invokeError } = await supabase.functions.invoke("admin-change-own-password", {
+        body: { new_password: password },
+        headers,
+      });
+      if (invokeError) setError(invokeError.message);
+      else if (data?.error) setError(data.error);
+      else {
+        setAllowed(false);
+        setSuccess(true);
+        setPassword("");
+        setConfirm("");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update password.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return <section className="panel" style={{ maxWidth: 680, display: "grid", gap: 18 }}>
@@ -82,7 +105,7 @@ export default function AdminPasswordChange({ lang }: { lang: "en" | "ar" }) {
       <button className="primary-button" disabled={busy}><KeyRound size={16}/>{busy ? (ar ? "جارٍ التغيير..." : "Updating...") : (ar ? "تغيير كلمة المرور نهائياً" : "Change password")}</button>
     </form>}
     {error && <div className="error-box">{error}</div>}
-    {success && <div className="setup-note">{ar ? "تم تغيير كلمة المرور بنجاح. استخدم كلمة المرور الجديدة في تسجيل الدخول القادم." : "Password updated successfully. Use your new password the next time you sign in."}</div>}
+    {success && <div className="setup-note">{ar ? "تم تغيير كلمة المرور بنجاح. استخدم كلمة المرور الجديدة في تسجيل الدخول القادم." : "Password updated successfully. Use the new password the next time you sign in."}</div>}
   </section>;
 }
 
