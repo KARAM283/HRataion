@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { MapPin, RefreshCw, ShieldAlert } from "lucide-react";
+import { LogOut, MapPin, RefreshCw, ShieldAlert } from "lucide-react";
 
 const OFFICE = { latitude: 36.36056931159832, longitude: 43.14616438172047, radius: 100 };
 
@@ -13,7 +13,7 @@ function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) 
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function OfficeAccessGate({ children, lang }: { children: ReactNode; lang: "ar" | "en" }) {
+export default function OfficeAccessGate({ children, lang, onSignOut }: { children: ReactNode; lang: "ar" | "en"; onSignOut: () => void }) {
   const [state, setState] = useState<"checking" | "allowed" | "blocked">("checking");
   const [message, setMessage] = useState("");
 
@@ -73,9 +73,14 @@ export default function OfficeAccessGate({ children, lang }: { children: ReactNo
         <p>{state === "checking"
           ? (lang === "ar" ? "يرجى الانتظار بينما نتحقق من وجودك داخل مقر الشركة." : "Please wait while we verify that you are at the company office.")
           : message}</p>
-        {state === "blocked" && <button className="primary-button full-button" onClick={verifyLocation}>
-          <RefreshCw size={16} /> {lang === "ar" ? "إعادة التحقق من الموقع" : "Check location again"}
-        </button>}
+        <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
+          <button className="primary-button full-button" onClick={verifyLocation} disabled={state === "checking"}>
+            <RefreshCw size={16} /> {lang === "ar" ? "فحص الموقع / إعادة الفحص" : "Check / Recheck location"}
+          </button>
+          <button className="secondary-button full-button" onClick={onSignOut}>
+            <LogOut size={16} /> {lang === "ar" ? "تسجيل الخروج" : "Sign out"}
+          </button>
+        </div>
       </section>
     </main>
   );
