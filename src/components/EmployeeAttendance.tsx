@@ -65,7 +65,11 @@ export default function EmployeeAttendance({ employeeId, lang, theme, onThemeTog
     }
   }
   async function checkIn() { await submitAttendance("check_in"); }
-  async function checkOut() { await submitAttendance("check_out"); }
+  async function checkOut() {
+    const confirmed = window.confirm(ar ? "هل أنت متأكد أنك تريد تسجيل الانصراف؟" : "Are you sure you want to check out?");
+    if (!confirmed) return;
+    await submitAttendance("check_out");
+  }
   return <div className={`login-screen employee-portal ${theme==="dark"?"theme-dark":""}`} dir={ar ? "rtl" : "ltr"}>
     <GlassCard className="employee-clock-panel" style={{ width: "min(100%, 480px)", padding: 28 }}>
       <div className="panel-heading"><div><img className="hrration-logo employee-logo" src="/hrration-logo.svg" alt="HRration"/><h3 style={{ fontSize: 22, marginTop: 8 }}>{ar ? "الحضور والانصراف" : "Attendance"}</h3><p>{new Date().toLocaleDateString(ar ? "ar-IQ" : "en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p></div><div className="employee-portal-actions"><button className="icon-button" onClick={onThemeToggle} title={theme==="light"?"Dark mode":"Light mode"}>{theme==="light"?<Moon size={17}/>:<Sun size={17}/>}</button><button className="icon-button" onClick={onSignOut} title={ar ? "تسجيل الخروج" : "Sign out"}><LogOut size={18}/></button></div></div>
