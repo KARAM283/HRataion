@@ -932,3 +932,37 @@ html[data-theme="dark"] body:after{
   background:transparent!important;
   color:#F2F5F3!important;
 }
+
+
+/* BlueLine logo: transparent background and readable wordmark */
+.hrration-logo,
+.sidebar-logo,
+.employee-logo,
+.login-logo {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  object-fit: contain !important;
+}
+.sidebar-logo {
+  width: 176px !important;
+  height: 44px !important;
+  filter: none !important;
+}
+.employee-logo {
+  width: 220px !important;
+  height: auto !important;
+  filter: none !important;
+}
+.login-logo {
+  width: min(300px, 48vw) !important;
+  height: auto !important;
+  filter: none !important;
+}
+@media (max-width:720px) {
+  .sidebar-logo { width: 142px !important; height: 38px !important; }
+  .employee-logo { width: 190px !important; }
+  .login-logo { width: min(245px, 62vw) !important; }
+}
