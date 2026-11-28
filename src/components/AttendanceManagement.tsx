@@ -10,6 +10,7 @@ const todayBaghdad = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ba
 const nowBaghdad = () => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
 const timeText = (v: string | null) => v ? new Date(v).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Baghdad"}) : "—";
 const stamp = (date: string,time: string) => new Date(`${date}T${time}:00+03:00`).toISOString();
+const isFriday = (date: string) => new Date(`${date}T12:00:00+03:00`).getDay() === 5;
 
 export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
   const ar = lang === "ar";
@@ -40,8 +41,8 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
   const dayOffDates = useMemo(()=>new Set(records.filter(r=>["day_off","day-off","leave"].includes(r.status??"")).map(r=>r.attendance_date)),[records]);
   const dayRecords = rows.map(employee=>({employee,record:recordMap.get(`${employee.id}|${selectedDate}`)??null}));
   const presentCount = dayRecords.filter(x=>x.record?.check_in || x.record?.status==="present").length;
-  const offCount = dayRecords.filter(x=>["day_off","day-off","leave"].includes(x.record?.status??"")).length;
-  const absentCount = dayRecords.filter(x=>!x.record).length;
+  const offCount = dayRecords.filter(x=>isFriday(selectedDate)||["day_off","day-off","leave"].includes(x.record?.status??"")).length;
+  const absentCount = dayRecords.filter(x=>!isFriday(selectedDate)&&!x.record).length;
 
   async function load() {
     if(!supabase) return;
@@ -66,7 +67,7 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
     setError("");setNotice("");setTime(nowBaghdad());setTimeDialog({employee,kind});
   }
   async function saveTime() {
-    if(!supabase||!timeDialog)return;
+    if(!supabase||!timeDialog||isFriday(selectedDate))return;
     setBusy(true);setError("");setNotice("");
     const old=recordMap.get(`${timeDialog.employee.id}|${selectedDate}`);
     const value=stamp(selectedDate,time);
@@ -77,7 +78,7 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
     setBusy(false);
   }
   async function dayOff(employee:EmployeeRow) {
-    if(!supabase)return;
+    if(!supabase||isFriday(selectedDate))return;
     setBusy(true);setError("");setNotice("");
     const old=recordMap.get(`${employee.id}|${selectedDate}`);
     const payload={check_in:null,check_out:null,status:"day_off"};
@@ -142,14 +143,14 @@ export default function AttendanceManagement({ lang }: { lang: "en" | "ar" }) {
         <div className="att-main">
           <div className="att-datebar"><div><strong>{label("Daily attendance","الحضور اليومي")}</strong><div className="att-summary"><span className="att-chip">{label("Present","حاضر")}: {presentCount}</span><span className="att-chip">{label("Day off","إجازة")}: {offCount}</span><span className="att-chip">{label("No record","بدون تسجيل")}: {absentCount}</span></div></div><span>{selectedDate}</span></div>
           <div className="att-table-wrap"><table className="att-table"><thead><tr><th>{label("Employee","الموظف")}</th><th>{label("Application user","حساب التطبيق")}</th><th>{label("Department","القسم")}</th><th>{label("Time record","أوقات الدوام")}</th><th>{label("Status","الحالة")}</th><th>{label("Actions","الإجراءات")}</th></tr></thead>
-          <tbody>{loading?<tr><td colSpan={6} className="att-empty">{label("Loading employees...","جارٍ تحميل الموظفين...")}</td></tr>:rows.length===0?<tr><td colSpan={6} className="att-empty">{label("No active employees to mark.","لا يوجد موظفون نشطون لتسجيل حضورهم.")}</td></tr>:dayRecords.map(({employee,record})=>{const off=["day_off","day-off","leave"].includes(record?.status??"");const present=Boolean(record?.check_in)||record?.status==="present";const profile=profileMap.get(employee.id);return <tr key={employee.id}><td><span className="att-person">{employee.full_name}</span><span className="att-sub">{employee.employee_code??"—"}</span></td><td>{profile?.is_active?profile.login_email??"—":label("Not linked","غير مرتبط")}</td><td>—</td><td><span className="att-time">{timeText(record?.check_in??null)} / {timeText(record?.check_out??null)}</span></td><td><span className={`att-pill ${off?"off":present?"present":"absent"}`}>{off?label("Day off","إجازة"):present?label("Present","حاضر"):label("Not marked","غير مسجل")}</span></td><td><div className="att-actions"><button className="att-action in" disabled={busy} onClick={()=>openTime(employee,"check_in")}><Check size={12}/>{label("IN","دخول")}</button><button className="att-action out" disabled={busy} onClick={()=>openTime(employee,"check_out")}><LogOut size={12}/>{label("OUT","خروج")}</button><button className="att-action off" disabled={busy} onClick={()=>void dayOff(employee)}><Palmtree size={12}/>{label("OFF","إجازة")}</button></div></td></tr>})}</tbody></table></div>
+          <tbody>{loading?<tr><td colSpan={6} className="att-empty">{label("Loading employees...","جارٍ تحميل الموظفين...")}</td></tr>:rows.length===0?<tr><td colSpan={6} className="att-empty">{label("No active employees to mark.","لا يوجد موظفون نشطون لتسجيل حضورهم.")}</td></tr>:dayRecords.map(({employee,record})=>{const off=isFriday(selectedDate)||["day_off","day-off","leave"].includes(record?.status??"");const present=Boolean(record?.check_in)||record?.status==="present";const profile=profileMap.get(employee.id);return <tr key={employee.id}><td><span className="att-person">{employee.full_name}</span><span className="att-sub">{employee.employee_code??"—"}</span></td><td>{profile?.is_active?profile.login_email??"—":label("Not linked","غير مرتبط")}</td><td>—</td><td><span className="att-time">{timeText(record?.check_in??null)} / {timeText(record?.check_out??null)}</span></td><td><span className={`att-pill ${off?"off":present?"present":"absent"}`}>{isFriday(selectedDate)?label("Weekly off","عطلة أسبوعية"):off?label("Day off","إجازة"):present?label("Present","حاضر"):label("Not marked","غير مسجل")}</span></td><td><div className="att-actions"><button className="att-action in" disabled={busy||isFriday(selectedDate)} onClick={()=>openTime(employee,"check_in")}><Check size={12}/>{label("IN","دخول")}</button><button className="att-action out" disabled={busy||isFriday(selectedDate)} onClick={()=>openTime(employee,"check_out")}><LogOut size={12}/>{label("OUT","خروج")}</button><button className="att-action off" disabled={busy||isFriday(selectedDate)} onClick={()=>void dayOff(employee)}><Palmtree size={12}/>{label("OFF","إجازة")}</button></div></td></tr>})}</tbody></table></div>
           <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><button className="att-refresh" onClick={()=>window.print()}><Printer size={14}/>{label("Print attendance","طباعة الحضور")}</button></div>
         </div>
         <aside className="att-calendar"><label>{label("Employee calendar","تقويم الموظف")}</label><select value={selectedEmployee} onChange={e=>setSelectedEmployee(e.target.value)}><option value="all">{label("All employees","كل الموظفين")}</option>{activeEmployees.map(e=><option key={e.id} value={e.id}>{e.full_name}</option>)}</select>
           <div className="att-cal-nav"><button className="att-nav" onClick={()=>shiftMonth(-1)}><ChevronLeft size={15}/></button><strong>{monthTitle}</strong><button className="att-nav" onClick={()=>shiftMonth(1)}><ChevronRight size={15}/></button></div>
           <div className="att-week">{weekdayNames.map((d,i)=><span key={i}>{d}</span>)}</div>
-          <div className="att-days">{Array.from({length:monthDays.offset},(_,i)=><span key={"blank"+i}/>)}{monthDays.days.map(date=><button key={date} className={`att-day ${selectedDate===date?"selected":""} ${dayOffDates.has(date)?"off":""} ${todayBaghdad()===date?"today":""}`} onClick={()=>setSelectedDate(date)} title={dayOffDates.has(date)?label("At least one employee is off","موظف واحد على الأقل في إجازة"):date}>{Number(date.slice(-2))}</button>)}</div>
-          <div className="att-legend"><i/> {label("Yellow dates have at least one employee marked Day off.","التواريخ الصفراء تعني وجود موظف واحد على الأقل في إجازة.")}</div>
+          <div className="att-days">{Array.from({length:monthDays.offset},(_,i)=><span key={"blank"+i}/>)}{monthDays.days.map(date=><button key={date} className={`att-day ${selectedDate===date?"selected":""} ${(dayOffDates.has(date)||isFriday(date))?"off":""} ${todayBaghdad()===date?"today":""}`} onClick={()=>setSelectedDate(date)} title={isFriday(date)?label("Weekly off for all employees","عطلة أسبوعية لجميع الموظفين"):dayOffDates.has(date)?label("At least one employee is off","موظف واحد على الأقل في إجازة"):date}>{Number(date.slice(-2))}</button>)}</div>
+          <div className="att-legend"><i/> {label("Fridays are weekly off for everyone; other yellow dates are employee day-offs.","الجمعة عطلة أسبوعية للجميع، وبقية التواريخ الصفراء إجازات مسجلة للموظفين.")}</div>
         </aside>
       </div>
     </div>
